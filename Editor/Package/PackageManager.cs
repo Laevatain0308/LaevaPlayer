@@ -22,7 +22,7 @@ namespace Yamadev.YamaStream.Editor
       {
         if (!EditorApplication.isCompiling && !EditorApplication.isUpdating)
         {
-          CheckUpdate().Forget();
+          // CheckUpdate().Forget();
         }
       };
     }
