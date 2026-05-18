@@ -9,8 +9,11 @@ namespace Yamadev.YamaStream.Modules.VideoResolver
   [RequireComponent(typeof(VRCAVProVideoPlayer))]
   public class VideoResolver : YamaPlayerModule
   {
-    [SerializeField] private VRCUrl[] _urls;
+    [Header("逐播放器手动配置")]
     [SerializeField] private int _playerId = 0;
+
+    [Header("无需手动配置")]
+    [SerializeField] private VRCUrl[] _urls;
 
     //———————— Callback URLs ————————//
     [SerializeField] private VRCUrl _bilibiliVideoCallbackUrl;
