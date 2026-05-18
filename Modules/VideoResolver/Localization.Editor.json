@@ -1,0 +1,38 @@
+{
+  "ja": {
+    "module.videoresolver.name": "動画リンク解析器",
+    "module.videoresolver.description": "外部サーバーを利用して一部の特殊な動画リンクを解析します"
+  },
+  "en": {
+    "module.videoresolver.name": "Video Resolver",
+    "module.videoresolver.description": "Parses some special video links via an external server"
+  },
+  "ko": {
+    "module.videoresolver.name": "비디오 링크 파서",
+    "module.videoresolver.description": "외부 서버를 통해 일부 특수 비디오 링크를 파싱합니다"
+  },
+  "zh-CN": {
+    "module.videoresolver.name": "视频链接解析器",
+    "module.videoresolver.description": "借助外部服务端解析部分特殊视频链接"
+  },
+  "zh-TW": {
+    "module.videoresolver.name": "影片連結解析器",
+    "module.videoresolver.description": "透過外部伺服器解析部分特殊影片連結"
+  },
+  "es": {
+    "module.videoresolver.name": "Analizador de enlaces de video",
+    "module.videoresolver.description": "Analiza algunos enlaces de video especiales mediante un servidor externo"
+  },
+  "ru": {
+    "module.videoresolver.name": "Парсер видеоссылок",
+    "module.videoresolver.description": "Анализирует некоторые специальные видеоссылки с помощью внешнего сервера"
+  },
+  "uk": {
+    "module.videoresolver.name": "Парсер відеопосилань",
+    "module.videoresolver.description": "Аналізує деякі особливі відеопосилання за допомогою зовнішнього сервера"
+  },
+  "it": {
+    "module.videoresolver.name": "Parser di link video",
+    "module.videoresolver.description": "Analizza alcuni link video speciali utilizzando un server esterno"
+  }
+}

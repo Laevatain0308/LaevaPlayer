@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: TimelineSync
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: db87612d20c75ba40944600479db9f3e, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: a3d79fc5dd68a4a8d82a9099e5e2bcf8,
+    type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: ea2a9bf436385ce43879d48ae4415f65, type: 3}

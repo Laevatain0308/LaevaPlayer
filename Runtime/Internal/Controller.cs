@@ -32,6 +32,8 @@ namespace Yamadev.YamaStream
     [UdonSynced] private VRCUrl _url = VRCUrl.Empty;
     private object[] _track;
     private PlayerHandler _handler;
+    private YamaPlayerBehaviour _resolveTarget;
+    private string _resolveEvent;
     private YamaPlayerListener[] _listeners = new YamaPlayerListener[0];
     private int _errorRetryCount;
     private VRCUrl _retryTargetUrl = VRCUrl.Empty;
@@ -327,6 +329,25 @@ namespace Yamadev.YamaStream
       }
     }
 
+    public void SetTrackResolveHook(YamaPlayerBehaviour target, string eventName)
+    {
+      _resolveTarget = target;
+      _resolveEvent = eventName;
+    }
+
+    public void DirectLoadTrack()
+    {
+      var url = TrackUtils.GetUrl(Track);
+      if (!url.IsValidUrl())
+      {
+        PrintError($"URL {url.Get()} is not valid.");
+        return;
+      }
+      Handler.LoadUrl(url);
+      _lastLoadTime = Time.time;
+      PrintLog($"Load url: {url}.");
+    }
+
     public void PlayTrack(object[] track)
     {
       if (!Utilities.IsValid(track)) return;
@@ -359,8 +380,15 @@ namespace Yamadev.YamaStream
       SetPlayerType(trackPlayerType);
 
       if (!_reloading) Track = track;
-      Handler.LoadUrl(TrackUtils.GetUrl(track));
-      _lastLoadTime = Time.time;
+
+      if (Utilities.IsValid(_resolveTarget) && !string.IsNullOrEmpty(_resolveEvent))
+      {
+        _resolveTarget.SendCustomEvent(_resolveEvent);
+      }
+      else
+      {
+        DirectLoadTrack();
+      }
 
       if (Networking.IsOwner(gameObject) && !_isLocal && !isReload)
       {

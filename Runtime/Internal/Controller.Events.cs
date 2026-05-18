@@ -233,7 +233,15 @@ namespace Yamadev.YamaStream
         return;
       }
 
-      Handler.LoadUrl(currentUrl);
+      if (Utilities.IsValid(_resolveTarget) && !string.IsNullOrEmpty(_resolveEvent))
+      {
+        _resolveTarget.SendCustomEvent(_resolveEvent);
+      }
+      else
+      {
+        Handler.LoadUrl(currentUrl);
+      }
+
       _lastLoadTime = Time.time;
 
       int len = _listeners.Length;
