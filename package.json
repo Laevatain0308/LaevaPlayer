@@ -1,12 +1,12 @@
 {
-  "name": "net.kwxxw.yama-stream",
-  "displayName": "YamaPlayer",
-  "version": "2.0.0-beta.6",
+  "name": "net.laevatain.laevaplayer",
+  "displayName": "LaevaPlayer",
+  "version": "2.0.1",
   "unity": "2022.3",
-  "description": "Video player for VRChat.",
+  "description": "Video player for VRChat. (Forked from YamaPlayer)",
   "author": {
-    "name": "kwxxw",
-    "url": "https://yamadev.booth.pm"
+    "name": "laevatain",
+    "url": "https://www.laevatain.top"
   },
   "legacyFolders": {
     "Assets\\Yamadev\\YamaStream": "af99c59180c62fb41ab655b73f426e61"
