@@ -31,7 +31,9 @@ namespace Yamadev.YamaStream.Modules.VideoResolver.Editor
     {
       if (module == null) return;
 
-      var playerId = (int)module.GetProgramVariable("_playerId");
+      // 从 Controller 读取 playerId
+      var controller = module.GetComponentInParent<Controller>();
+      var playerId = (int)controller.GetProgramVariable("_playerId");
 
       // 生成信号URL数组 (TERMINATOR_POS + 1) * 256 = 5120 个
       var totalUrls = (TERMINATOR_POS + 1) * 256;

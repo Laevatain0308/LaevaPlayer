@@ -1,4 +1,4 @@
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Components;
 using VRC.SDK3.Data;
@@ -9,7 +9,7 @@ using VRC.Udon.Common.Interfaces;
 
 namespace Yamadev.YamaStream.Modules.AnimeOnDemand
 {
-  [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+  [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
   public class AnimeOnDemand : YamaPlayerModule
   {
     [Header("由构建过程自动生成")]
@@ -23,7 +23,8 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     [SerializeField] private VRCUrlInputField _searchInputField;
 
     [Header("封面下载器")]
-    [SerializeField] private VRCImageDownloader[] _coverDownloaders;
+    [SerializeField] [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */  
+    private VRCImageDownloader[] _coverDownloaders;
 
     [Header("UI 面板")]
     [SerializeField] private GameObject _panelRoot;

@@ -1,0 +1,38 @@
+{
+  "ja": {
+    "module.animondemand.name": "アニメ点播器",
+    "module.animondemand.description": "外部サーバーを利用してアニメ番組を閲覧し、検索や点播が可能です"
+  },
+  "en": {
+    "module.animondemand.name": "Anime On Demand",
+    "module.animondemand.description": "Browse anime catalog via external server, with search and on-demand playback"
+  },
+  "ko": {
+    "module.animondemand.name": "애니 주문형 재생기",
+    "module.animondemand.description": "외부 서버를 통해 애니메이션 카탈로그를 탐색하고, 검색 및 주문형 재생을 지원합니다"
+  },
+  "zh-CN": {
+    "module.animondemand.name": "番剧点播器",
+    "module.animondemand.description": "借助外部服务端浏览番剧目录，支持搜索与点播番剧"
+  },
+  "zh-TW": {
+    "module.animondemand.name": "番劇點播器",
+    "module.animondemand.description": "透過外部伺服器瀏覽番劇目錄，支援搜尋與點播番劇"
+  },
+  "es": {
+    "module.animondemand.name": "Anime Bajo Demanda",
+    "module.animondemand.description": "Explora el catálogo de anime mediante un servidor externo, con búsqueda y reproducción bajo demanda"
+  },
+  "ru": {
+    "module.animondemand.name": "Аниме по запросу",
+    "module.animondemand.description": "Просмотр каталога аниме через внешний сервер с поиском и воспроизведением по запросу"
+  },
+  "uk": {
+    "module.animondemand.name": "Аніме на вимогу",
+    "module.animondemand.description": "Перегляд каталогу аніме через зовнішній сервер із пошуком і відтворенням на вимогу"
+  },
+  "it": {
+    "module.animondemand.name": "Anime On Demand",
+    "module.animondemand.description": "Sfoglia il catalogo anime tramite server esterno, con ricerca e riproduzione on demand"
+  }
+}
