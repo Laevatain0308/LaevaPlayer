@@ -22,6 +22,10 @@ namespace Yamadev.YamaStream
     [SerializeField, Range(0, 10)] private int _useFallbackAfterErrors = 1;
     [SerializeField] private string _timeFormat = @"hh\:mm\:ss";
     [SerializeField] private bool _isLocal;
+    [SerializeField, Header("播放器序号（每个播放器实例手动指定唯一值，0-255）")]
+    [Range(0, 255)]
+    private int _playerId = 0;
+    public int PlayerId => _playerId;
     [SerializeField, Range(0, 10)] private int _maxErrorRetry = 5;
     [SerializeField, UdonSynced, FieldChangeCallback(nameof(Loop))] private bool _loop;
     [UdonSynced, FieldChangeCallback(nameof(Speed))] private float _speed = 1f;
