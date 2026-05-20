@@ -4,7 +4,9 @@
     "references": [
         "GUID:befb3e42bf02a9b488522ef543d61aa0",
         "GUID:99835874ee819da44948776e0df4ff1d",
-        "GUID:f16c18940d95fd44a911829bf5e37070"
+        "GUID:f16c18940d95fd44a911829bf5e37070",
+        "VRC.Udon",
+        "VRC.Udon.Serialization.OdinSerializer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

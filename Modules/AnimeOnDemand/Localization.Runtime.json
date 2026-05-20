@@ -1,0 +1,92 @@
+{
+  "ja": {
+    "module.animeOnDemand.loading": "読み込み中...",
+    "module.animeOnDemand.loadingUpdate": "最近の更新を読み込み中...",
+    "module.animeOnDemand.loadingSearch": "検索中...",
+    "module.animeOnDemand.loadingDetail": "詳細を読み込み中...",
+    "module.animeOnDemand.recentUpdate": "最近の更新",
+    "module.animeOnDemand.searchResults": "検索結果",
+    "module.animeOnDemand.noData": "データなし",
+    "module.animeOnDemand.error": "読み込みに失敗しました。再試行してください。"
+  },
+  "en": {
+    "module.animeOnDemand.loading": "Loading...",
+    "module.animeOnDemand.loadingUpdate": "Loading recent updates...",
+    "module.animeOnDemand.loadingSearch": "Searching...",
+    "module.animeOnDemand.loadingDetail": "Loading details...",
+    "module.animeOnDemand.recentUpdate": "Recent Updates",
+    "module.animeOnDemand.searchResults": "Search Results",
+    "module.animeOnDemand.noData": "No Data",
+    "module.animeOnDemand.error": "Failed to load. Please retry."
+  },
+  "ko": {
+    "module.animeOnDemand.loading": "로딩 중...",
+    "module.animeOnDemand.loadingUpdate": "최근 업데이트 로딩 중...",
+    "module.animeOnDemand.loadingSearch": "검색 중...",
+    "module.animeOnDemand.loadingDetail": "상세 정보 로딩 중...",
+    "module.animeOnDemand.recentUpdate": "최근 업데이트",
+    "module.animeOnDemand.searchResults": "검색 결과",
+    "module.animeOnDemand.noData": "데이터 없음",
+    "module.animeOnDemand.error": "로딩에 실패했습니다. 다시 시도하세요."
+  },
+  "zh-CN": {
+    "module.animeOnDemand.loading": "加载中...",
+    "module.animeOnDemand.loadingUpdate": "正在加载最近更新...",
+    "module.animeOnDemand.loadingSearch": "正在搜索...",
+    "module.animeOnDemand.loadingDetail": "正在加载详情...",
+    "module.animeOnDemand.recentUpdate": "最近更新",
+    "module.animeOnDemand.searchResults": "搜索结果",
+    "module.animeOnDemand.noData": "暂无数据",
+    "module.animeOnDemand.error": "加载失败，请重试。"
+  },
+  "zh-TW": {
+    "module.animeOnDemand.loading": "載入中...",
+    "module.animeOnDemand.loadingUpdate": "正在載入最近更新...",
+    "module.animeOnDemand.loadingSearch": "正在搜尋...",
+    "module.animeOnDemand.loadingDetail": "正在載入詳情...",
+    "module.animeOnDemand.recentUpdate": "最近更新",
+    "module.animeOnDemand.searchResults": "搜尋結果",
+    "module.animeOnDemand.noData": "暫無資料",
+    "module.animeOnDemand.error": "載入失敗，請重試。"
+  },
+  "es": {
+    "module.animeOnDemand.loading": "Cargando...",
+    "module.animeOnDemand.loadingUpdate": "Cargando actualizaciones...",
+    "module.animeOnDemand.loadingSearch": "Buscando...",
+    "module.animeOnDemand.loadingDetail": "Cargando detalles...",
+    "module.animeOnDemand.recentUpdate": "Actualizaciones recientes",
+    "module.animeOnDemand.searchResults": "Resultados de búsqueda",
+    "module.animeOnDemand.noData": "Sin datos",
+    "module.animeOnDemand.error": "Error al cargar. Inténtelo de nuevo."
+  },
+  "ru": {
+    "module.animeOnDemand.loading": "Загрузка...",
+    "module.animeOnDemand.loadingUpdate": "Загрузка обновлений...",
+    "module.animeOnDemand.loadingSearch": "Поиск...",
+    "module.animeOnDemand.loadingDetail": "Загрузка деталей...",
+    "module.animeOnDemand.recentUpdate": "Недавние обновления",
+    "module.animeOnDemand.searchResults": "Результаты поиска",
+    "module.animeOnDemand.noData": "Нет данных",
+    "module.animeOnDemand.error": "Ошибка загрузки. Повторите попытку."
+  },
+  "uk": {
+    "module.animeOnDemand.loading": "Завантаження...",
+    "module.animeOnDemand.loadingUpdate": "Завантаження оновлень...",
+    "module.animeOnDemand.loadingSearch": "Пошук...",
+    "module.animeOnDemand.loadingDetail": "Завантаження деталей...",
+    "module.animeOnDemand.recentUpdate": "Нещодавні оновлення",
+    "module.animeOnDemand.searchResults": "Результати пошуку",
+    "module.animeOnDemand.noData": "Немає даних",
+    "module.animeOnDemand.error": "Помилка завантаження. Повторіть спробу."
+  },
+  "it": {
+    "module.animeOnDemand.loading": "Caricamento...",
+    "module.animeOnDemand.loadingUpdate": "Caricamento aggiornamenti...",
+    "module.animeOnDemand.loadingSearch": "Ricerca...",
+    "module.animeOnDemand.loadingDetail": "Caricamento dettagli...",
+    "module.animeOnDemand.recentUpdate": "Aggiornamenti recenti",
+    "module.animeOnDemand.searchResults": "Risultati della ricerca",
+    "module.animeOnDemand.noData": "Nessun dato",
+    "module.animeOnDemand.error": "Caricamento fallito. Riprova."
+  }
+}

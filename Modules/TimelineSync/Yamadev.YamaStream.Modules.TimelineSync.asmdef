@@ -3,7 +3,9 @@
     "rootNamespace": "",
     "references": [
         "GUID:befb3e42bf02a9b488522ef543d61aa0",
-        "GUID:99835874ee819da44948776e0df4ff1d"
+        "GUID:99835874ee819da44948776e0df4ff1d",
+        "VRC.Udon",
+        "VRC.Udon.Serialization.OdinSerializer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

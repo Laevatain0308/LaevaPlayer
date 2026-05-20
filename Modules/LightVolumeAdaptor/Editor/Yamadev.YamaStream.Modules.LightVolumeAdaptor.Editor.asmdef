@@ -5,7 +5,20 @@
         "GUID:165d832aac3edac47af5451df1676e53",
         "GUID:befb3e42bf02a9b488522ef543d61aa0",
         "GUID:cc15ad66102809c409a82fbb99316bcb",
-        "GUID:99835874ee819da44948776e0df4ff1d"
+        "GUID:99835874ee819da44948776e0df4ff1d",
+        "AVProVideo.Runtime",
+        "com.vrchat.core.vpm-resolver.Editor",
+        "UdonSharp.Editor",
+        "UdonSharp.Lib",
+        "UniTask",
+        "VRC.SDK3",
+        "VRC.SDK3.Editor",
+        "VRC.SDKBase",
+        "VRC.SDKBase.Editor",
+        "VRC.SDKBase.Editor.BuildPipeline",
+        "VRC.Udon",
+        "VRC.Udon.Editor",
+        "VRC.Udon.Serialization.OdinSerializer"
     ],
     "includePlatforms": [
         "Editor"

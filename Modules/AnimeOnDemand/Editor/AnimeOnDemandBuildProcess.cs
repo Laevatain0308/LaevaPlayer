@@ -58,15 +58,11 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand.Editor
       var backUrl = new VRCUrl($"{baseUrl}/back?pid={playerId}");
       module.SetProgramVariable("_backUrl", backUrl);
 
-      // 6. 设置搜索 VRCUrlInputField 默认 URL
+      // 6. 搜索基 URL（1 个）——由 UI 层运行时 SetUrl 写入 VRCUrlInputField
       var searchBaseUrl = new VRCUrl($"{baseUrl}/search?pid={playerId}&q=");
-      var searchField = module.GetComponentInChildren<VRCUrlInputField>();
-      if (searchField != null)
-      {
-        searchField.SetUrl(searchBaseUrl);
-      }
+      module.SetProgramVariable("_searchBaseUrlField", searchBaseUrl);
 
-      Debug.Log($"[AnimeOnDemand] Build process complete: playerId={playerId}, 1,103 URLs generated");
+      Debug.Log($"[AnimeOnDemand] Build process complete: playerId={playerId}, 1,104 URLs generated");
     }
   }
 }

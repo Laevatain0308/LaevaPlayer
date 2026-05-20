@@ -1,4 +1,4 @@
-﻿using UdonSharp;
+using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Components;
 using VRC.SDK3.Data;
@@ -12,92 +12,174 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
   [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
   public class AnimeOnDemand : YamaPlayerModule
   {
+    private const int MAX_ITEMS = 100;
+    private const int MAX_CHANNELS = 3;
+    private const int MAX_EPISODES = 300;
+
+    private const int STATE_INIT = 0;
+    private const int STATE_LOADING_UPDATE = 1;
+    private const int STATE_LOADING_SEARCH = 2;
+    private const int STATE_LOADING_DETAIL = 3;
+    private const int STATE_UPDATE_LIST = 4;
+    private const int STATE_SEARCH_RESULTS = 5;
+    private const int STATE_DETAIL = 6;
+    private const int STATE_ERROR = 7;
+
+    private const int CONTEXT_UPDATE = 0;
+    private const int CONTEXT_SEARCH = 1;
+
     [Header("由构建过程自动生成")]
     [SerializeField] private VRCUrl _updateUrl;
     [SerializeField] private VRCUrl[] _detailUrls;
     [SerializeField] private VRCUrl[] _coverUrls;
     [SerializeField] private VRCUrl[] _playUrls;
     [SerializeField] private VRCUrl _backUrl;
+    [SerializeField] private VRCUrl _searchBaseUrlField;
 
-    [Header("搜索栏")]
-    [SerializeField] private VRCUrlInputField _searchInputField;
-
-    [Header("封面下载器")]
-    [SerializeField] [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */  
+    [Header("封面下载器池数量")]
+    [SerializeField] [Range(1, 12)] private int _coverDownloaderCount = 8;
     private VRCImageDownloader[] _coverDownloaders;
 
-    [Header("UI 面板")]
-    [SerializeField] private GameObject _panelRoot;
-    [SerializeField] private GameObject _updateListView;
-    [SerializeField] private GameObject _detailView;
-    [SerializeField] private GameObject _loadingIndicator;
-    [SerializeField] private GameObject _errorText;
-    [SerializeField] private GameObject _searchResultLabel;
-    [SerializeField] private UnityEngine.UI.Text _statusText;
-    [SerializeField] private UnityEngine.UI.Text _detailTitleText;
-    [SerializeField] private UnityEngine.UI.Text _detailDescText;
-    [SerializeField] private UnityEngine.UI.RawImage _detailCoverImage;
-    [SerializeField] private Transform _coverGrid;
-    [SerializeField] private Transform _episodeList;
-
-    // ── 运行时状态 ──
+    // ── Runtime state ──
+    private int _state = STATE_INIT;
+    private int _context = CONTEXT_UPDATE;
     private DataList _currentList;
     private DataDictionary _currentDetail;
-    private int _currentDetailIndex;
-    private string _pendingAction;
+    private int _currentDetailIndex = -1;
+    private Texture[] _coverTextures;
 
-    // ── 按钮索引缓存（由 IndexTrigger 设置后调用方法）──
+    // ── Cover download scheduling ──
+    private int[] _slotToListIndex;
+    private int[] _pendingDownloadQueue;
+    private int _pendingDownloadHead;
+    private int _pendingDownloadTail;
+    private int _activeDownloadCount;
+
+    private YamaPlayerListener[] _listeners = new YamaPlayerListener[0];
+
     [HideInInspector] public int _coverClickIndex;
     [HideInInspector] public int _episodeChannelIndex;
     [HideInInspector] public int _episodeClickIndex;
 
-    private const int MAX_CHANNELS = 3;
-    private const int MAX_EPISODES = 300;
-    private const int MAX_ITEMS = 100;
+    // ═══════════════════════════════════════════════
+    //  Public access
+    // ═══════════════════════════════════════════════
+
+    public int GetState() { return _state; }
+    public int GetContext() { return _context; }
+    public DataList GetCurrentList() { return _currentList; }
+    public DataDictionary GetCurrentDetail() { return _currentDetail; }
+    public int GetCurrentDetailIndex() { return _currentDetailIndex; }
+    public VRCUrl GetSearchBaseUrl() { return _searchBaseUrlField; }
+
+    public Texture GetCoverTexture(int index)
+    {
+      if (!Utilities.IsValid(_coverTextures)) return null;
+      if (index < 0 || index >= _coverTextures.Length) return null;
+      return _coverTextures[index];
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Listener management
+    // ═══════════════════════════════════════════════
+
+    public void AddListener(YamaPlayerListener listener)
+    {
+      if (!Utilities.IsValid(listener)) return;
+      if (System.Array.IndexOf(_listeners, listener) >= 0) return;
+      _listeners = _listeners.Add(listener);
+    }
+
+    private void BroadcastEvent(string eventName)
+    {
+      int len = _listeners.Length;
+      for (int i = 0; i < len; i++)
+      {
+        var l = _listeners[i];
+        if (Utilities.IsValid(l)) l.SendCustomEvent(eventName);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Lifecycle
+    // ═══════════════════════════════════════════════
 
     public override void Start()
     {
       base.Start();
-      if (Utilities.IsValid(_panelRoot)) _panelRoot.SetActive(false);
 
-      _pendingAction = string.Empty;
       _currentList = new DataList();
       _currentDetail = new DataDictionary();
+      _coverTextures = new Texture[0];
 
+      int poolSize = _coverDownloaderCount;
+      _coverDownloaders = new VRCImageDownloader[poolSize];
+      for (int i = 0; i < poolSize; i++)
+        _coverDownloaders[i] = new VRCImageDownloader();
+      _slotToListIndex = new int[poolSize];
+      for (int i = 0; i < poolSize; i++) _slotToListIndex[i] = -1;
+      _pendingDownloadQueue = new int[MAX_ITEMS];
+      _pendingDownloadHead = 0;
+      _pendingDownloadTail = 0;
+      _activeDownloadCount = 0;
+
+      Debug.Log("[AnimeOnDemand] Start, poolSize=" + poolSize);
       FetchUpdateList();
     }
 
     // ═══════════════════════════════════════════════
-    //  核心方法
+    //  Request helper — schedules timeout watchdog before network call
+    // ═══════════════════════════════════════════════
+
+    private void BeginRequest(int loadingState, VRCUrl url)
+    {
+      _state = loadingState;
+      Debug.Log("[AnimeOnDemand] BeginRequest state=" + loadingState + " url=" + url);
+      BroadcastEvent("AfterAnimeStateChanged");
+      SendCustomEventDelayedSeconds(nameof(OnRequestTimeout), 5f);
+      VRCStringDownloader.LoadUrl(url, (IUdonEventReceiver)this);
+    }
+
+    public void OnRequestTimeout()
+    {
+      if (_state != STATE_LOADING_UPDATE && _state != STATE_LOADING_SEARCH
+          && _state != STATE_LOADING_DETAIL) return;
+      Debug.Log("[AnimeOnDemand] OnRequestTimeout, recovering from state=" + _state);
+      _state = (_context == CONTEXT_SEARCH) ? STATE_SEARCH_RESULTS : STATE_UPDATE_LIST;
+      BroadcastEvent("AfterAnimeStateChanged");
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Core actions (called by UI layer)
     // ═══════════════════════════════════════════════
 
     public void FetchUpdateList()
     {
       if (!Utilities.IsValid(_updateUrl)) return;
-      _pendingAction = "update";
-      ShowLoading(true);
-      VRCStringDownloader.LoadUrl(_updateUrl, (IUdonEventReceiver)this);
+      _context = CONTEXT_UPDATE;
+      BeginRequest(STATE_LOADING_UPDATE, _updateUrl);
     }
 
     public void FetchDetail(int index)
     {
       if (!Utilities.IsValid(_detailUrls)) return;
       if (index < 0 || index >= _detailUrls.Length) return;
-
       _currentDetailIndex = index;
-      _pendingAction = "detail";
-      ShowLoading(true);
-      VRCStringDownloader.LoadUrl(_detailUrls[index], (IUdonEventReceiver)this);
+      BeginRequest(STATE_LOADING_DETAIL, _detailUrls[index]);
     }
 
-    public void FetchCover(int index, int slot)
+    public void OnSearchSubmit(VRCUrl url)
     {
-      if (!Utilities.IsValid(_coverDownloaders) || !Utilities.IsValid(_coverUrls)) return;
-      if (index < 0 || index >= _coverUrls.Length) return;
-      if (slot < 0 || slot >= _coverDownloaders.Length) return;
-      if (!Utilities.IsValid(_coverDownloaders[slot])) return;
+      if (!url.IsValidUrl()) return;
+      _context = CONTEXT_SEARCH;
+      Debug.Log("[AnimeOnDemand] OnSearchSubmit url=" + url);
+      BeginRequest(STATE_LOADING_SEARCH, url);
+    }
 
-      _coverDownloaders[slot].DownloadImage(_coverUrls[index], null, (IUdonEventReceiver)this);
+    public void BackToUpdate()
+    {
+      if (!Utilities.IsValid(_backUrl)) return;
+      BeginRequest(STATE_LOADING_UPDATE, _backUrl);
     }
 
     public void Play(int chIndex, int epIndex)
@@ -106,37 +188,24 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (chIndex < 0 || chIndex >= MAX_CHANNELS) return;
       if (epIndex < 0 || epIndex >= MAX_EPISODES) return;
 
-      var urlIndex = chIndex * MAX_EPISODES + epIndex;
+      int urlIndex = chIndex * MAX_EPISODES + epIndex;
       if (urlIndex >= _playUrls.Length) return;
 
       var track = TrackUtils.NewTrack(VideoPlayerType.AVProVideoPlayer, string.Empty, _playUrls[urlIndex]);
       _controller.PlayTrack(track);
-      PrintLog($"Play: ch={chIndex} ep={epIndex}");
     }
 
-    public void OnSearchSubmit()
+    public void ClearSearch()
     {
-      if (!Utilities.IsValid(_searchInputField)) return;
-
-      var url = _searchInputField.GetUrl();
-      if (!url.IsValidUrl()) return;
-
-      _pendingAction = "search";
-      ShowLoading(true);
-      VRCStringDownloader.LoadUrl(url, (IUdonEventReceiver)this);
-    }
-
-    public void BackToUpdate()
-    {
-      if (!Utilities.IsValid(_backUrl)) return;
-
-      VRCStringDownloader.LoadUrl(_backUrl, (IUdonEventReceiver)this);
-      // 服务端重置上下文后自动拉取更新列表
-      SendCustomEventDelayedSeconds(nameof(FetchUpdateList), 0.5f);
+      int prevState = _state;
+      if (prevState == STATE_SEARCH_RESULTS)
+        BackToUpdate();
+      else if (prevState == STATE_DETAIL)
+        _context = CONTEXT_UPDATE;
     }
 
     // ═══════════════════════════════════════════════
-    //  IndexTrigger 回调
+    //  IndexTrigger callbacks
     // ═══════════════════════════════════════════════
 
     public void OnCoverClick()
@@ -149,65 +218,101 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       Play(_episodeChannelIndex, _episodeClickIndex);
     }
 
-    public void OnPlayButtonClick()
-    {
-      if (_currentDetailIndex >= 0)
-      {
-        FetchDetail(_currentDetailIndex);
-      }
-    }
-
     // ═══════════════════════════════════════════════
-    //  网络回调
+    //  Network callbacks
     // ═══════════════════════════════════════════════
 
     public override void OnStringLoadSuccess(IVRCStringDownload result)
     {
-      ShowLoading(false);
+      if (Utilities.IsValid(_backUrl) && result.Url.Get() == _backUrl.Get())
+      {
+        _context = CONTEXT_UPDATE;
+        FetchUpdateList();
+        return;
+      }
 
       if (!VRCJson.TryDeserializeFromJson(result.Result, out DataToken json)) return;
       if (json.TokenType != TokenType.DataDictionary) return;
 
       var dict = json.DataDictionary;
 
-      switch (_pendingAction)
+      switch (_state)
       {
-        case "update":
+        case STATE_LOADING_UPDATE:
           HandleUpdateResponse(dict);
           break;
-        case "detail":
+        case STATE_LOADING_DETAIL:
           HandleDetailResponse(dict);
           break;
-        case "search":
+        case STATE_LOADING_SEARCH:
           HandleSearchResponse(dict);
           break;
-        default:
-          break;
       }
-
-      _pendingAction = string.Empty;
     }
 
     public override void OnStringLoadError(IVRCStringDownload result)
     {
-      ShowLoading(false);
-      _pendingAction = string.Empty;
-      ShowError(true);
+      Debug.Log("[AnimeOnDemand] OnStringLoadError error=" + result.Error + " url=" + result.Url);
+      _state = STATE_ERROR;
+      BroadcastEvent("AfterAnimeStateChanged");
       PrintError($"String load error: {result.Error} url={result.Url}");
     }
 
     public override void OnImageLoadSuccess(IVRCImageDownload result)
     {
-      ShowError(false);
+      string resultUrl = result.Url.Get();
+
+      if (!Utilities.IsValid(_coverUrls)) return;
+      int coverUrlLen = _coverUrls.Length;
+      for (int i = 0; i < coverUrlLen && i < _coverTextures.Length; i++)
+      {
+        if (_coverUrls[i] != null && _coverUrls[i].Get() == resultUrl)
+        {
+          _coverTextures[i] = result.Result;
+
+          int poolSize = _slotToListIndex.Length;
+          for (int s = 0; s < poolSize; s++)
+          {
+            if (_slotToListIndex[s] == i)
+            {
+              _slotToListIndex[s] = -1;
+              _activeDownloadCount--;
+              break;
+            }
+          }
+
+          DispatchNextPending();
+          BroadcastEvent("AfterCoverLoaded");
+          break;
+        }
+      }
     }
 
     public override void OnImageLoadError(IVRCImageDownload result)
     {
+      string resultUrl = result.Url.Get();
+
+      if (Utilities.IsValid(_coverUrls))
+      {
+        int poolSize = _slotToListIndex.Length;
+        for (int s = 0; s < poolSize; s++)
+        {
+          int idx = _slotToListIndex[s];
+          if (idx >= 0 && idx < _coverUrls.Length && _coverUrls[idx] != null && _coverUrls[idx].Get() == resultUrl)
+          {
+            _slotToListIndex[s] = -1;
+            _activeDownloadCount--;
+            break;
+          }
+        }
+      }
+
+      DispatchNextPending();
       PrintError($"Image load error: {result.Error} url={result.Url}");
     }
 
     // ═══════════════════════════════════════════════
-    //  响应处理
+    //  Response handlers
     // ═══════════════════════════════════════════════
 
     private void HandleUpdateResponse(DataDictionary dict)
@@ -216,59 +321,14 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (data.TokenType != TokenType.DataList) return;
 
       _currentList = data.DataList;
-      ShowError(false);
-
-      if (Utilities.IsValid(_updateListView)) _updateListView.SetActive(true);
-      if (Utilities.IsValid(_detailView)) _detailView.SetActive(false);
-      if (Utilities.IsValid(_searchResultLabel)) _searchResultLabel.SetActive(false);
+      _state = STATE_UPDATE_LIST;
+      _context = CONTEXT_UPDATE;
 
       int count = _currentList.Count;
-      if (Utilities.IsValid(_statusText))
-        _statusText.text = $"最近更新 ({count} 部)";
+      Debug.Log("[AnimeOnDemand] HandleUpdateResponse count=" + count);
+      if (count > 0) StartCoverDownloads(count);
 
-      // 为列表中每个条目加载封面（最多与封面下载器数量取小值）
-      int coverSlotCount = Utilities.IsValid(_coverDownloaders) ? _coverDownloaders.Length : 0;
-      int loadCount = count < coverSlotCount ? count : coverSlotCount;
-      for (int i = 0; i < loadCount; i++)
-      {
-        FetchCover(i, i);
-      }
-    }
-
-    private void HandleDetailResponse(DataDictionary dict)
-    {
-      if (!dict.TryGetValue("data", out DataToken data)) return;
-      if (data.TokenType != TokenType.DataDictionary) return;
-
-      _currentDetail = data.DataDictionary;
-      ShowError(false);
-
-      if (Utilities.IsValid(_updateListView)) _updateListView.SetActive(false);
-      if (Utilities.IsValid(_detailView)) _detailView.SetActive(true);
-
-      // 标题
-      if (_currentDetail.TryGetValue("title", out DataToken titleToken))
-      {
-        if (Utilities.IsValid(_detailTitleText))
-          _detailTitleText.text = titleToken.String;
-      }
-
-      // 简介
-      if (_currentDetail.TryGetValue("description", out DataToken descToken))
-      {
-        if (Utilities.IsValid(_detailDescText))
-          _detailDescText.text = descToken.String;
-      }
-
-      // 封面（详情也加载封面到 RawImage）
-      if (_currentDetailIndex >= 0 && Utilities.IsValid(_coverDownloaders) && _coverDownloaders.Length > 0)
-      {
-        // 使用最后一个 coverDownloader 加载详情封面，或重用第一个
-        int slot = _coverDownloaders.Length - 1;
-        FetchCover(_currentDetailIndex, slot);
-
-        // 将下载结果纹理设置到 RawImage（需要在 OnImageLoadSuccess 中处理）
-      }
+      BroadcastEvent("AfterAnimeStateChanged");
     }
 
     private void HandleSearchResponse(DataDictionary dict)
@@ -277,54 +337,84 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (data.TokenType != TokenType.DataList) return;
 
       _currentList = data.DataList;
-      ShowError(false);
-
-      if (Utilities.IsValid(_updateListView)) _updateListView.SetActive(true);
-      if (Utilities.IsValid(_detailView)) _detailView.SetActive(false);
-      if (Utilities.IsValid(_searchResultLabel)) _searchResultLabel.SetActive(true);
+      _state = STATE_SEARCH_RESULTS;
+      _context = CONTEXT_SEARCH;
 
       int count = _currentList.Count;
-      if (Utilities.IsValid(_statusText))
-        _statusText.text = $"搜索结果 ({count} 部)";
+      Debug.Log("[AnimeOnDemand] HandleSearchResponse count=" + count);
+      if (count > 0) StartCoverDownloads(count);
 
-      int coverSlotCount = Utilities.IsValid(_coverDownloaders) ? _coverDownloaders.Length : 0;
-      int loadCount = count < coverSlotCount ? count : coverSlotCount;
-      for (int i = 0; i < loadCount; i++)
+      BroadcastEvent("AfterAnimeStateChanged");
+    }
+
+    private void HandleDetailResponse(DataDictionary dict)
+    {
+      if (!dict.TryGetValue("data", out DataToken data)) return;
+      if (data.TokenType != TokenType.DataDictionary) return;
+
+      _currentDetail = data.DataDictionary;
+      _state = STATE_DETAIL;
+      Debug.Log("[AnimeOnDemand] HandleDetailResponse detailIndex=" + _currentDetailIndex);
+
+      BroadcastEvent("AfterAnimeStateChanged");
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Cover download orchestration
+    // ═══════════════════════════════════════════════
+
+    private void StartCoverDownloads(int count)
+    {
+      _coverTextures = new Texture[count];
+      _activeDownloadCount = 0;
+      _pendingDownloadHead = 0;
+      _pendingDownloadTail = 0;
+
+      int poolSize = _slotToListIndex.Length;
+      for (int i = 0; i < poolSize; i++) _slotToListIndex[i] = -1;
+
+      int initial = count < poolSize ? count : poolSize;
+      for (int i = 0; i < initial; i++)
+        DispatchCoverDownload(i);
+      for (int i = initial; i < count; i++)
+        EnqueuePending(i);
+    }
+
+    private void DispatchCoverDownload(int listIndex)
+    {
+      int poolSize = _slotToListIndex.Length;
+      for (int s = 0; s < poolSize; s++)
       {
-        FetchCover(i, i);
+        if (_slotToListIndex[s] < 0)
+        {
+          _slotToListIndex[s] = listIndex;
+          if (Utilities.IsValid(_coverDownloaders[s]) && Utilities.IsValid(_coverUrls) && listIndex < _coverUrls.Length)
+          {
+            _coverDownloaders[s].DownloadImage(_coverUrls[listIndex], null, (IUdonEventReceiver)this);
+            _activeDownloadCount++;
+          }
+          return;
+        }
       }
     }
 
-    // ═══════════════════════════════════════════════
-    //  UI 辅助
-    // ═══════════════════════════════════════════════
-
-    private void ShowLoading(bool show)
+    private void EnqueuePending(int listIndex)
     {
-      if (Utilities.IsValid(_loadingIndicator))
-        _loadingIndicator.SetActive(show);
+      _pendingDownloadQueue[_pendingDownloadTail] = listIndex;
+      _pendingDownloadTail = (_pendingDownloadTail + 1) % MAX_ITEMS;
     }
 
-    private void ShowError(bool show)
+    private void DispatchNextPending()
     {
-      if (Utilities.IsValid(_errorText))
-        _errorText.SetActive(show);
-    }
+      if (_pendingDownloadHead == _pendingDownloadTail) return;
 
-    public void TogglePanel()
-    {
-      if (!Utilities.IsValid(_panelRoot)) return;
-      _panelRoot.SetActive(!_panelRoot.activeSelf);
-    }
+      int poolSize = _slotToListIndex.Length;
+      int freeSlots = poolSize - _activeDownloadCount;
+      if (freeSlots <= 0) return;
 
-    public void ShowPanel()
-    {
-      if (Utilities.IsValid(_panelRoot)) _panelRoot.SetActive(true);
-    }
-
-    public void HidePanel()
-    {
-      if (Utilities.IsValid(_panelRoot)) _panelRoot.SetActive(false);
+      int index = _pendingDownloadQueue[_pendingDownloadHead];
+      _pendingDownloadHead = (_pendingDownloadHead + 1) % MAX_ITEMS;
+      DispatchCoverDownload(index);
     }
   }
 }

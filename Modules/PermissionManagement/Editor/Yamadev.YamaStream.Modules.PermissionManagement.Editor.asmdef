@@ -3,7 +3,22 @@
     "rootNamespace": "",
     "references": [
         "GUID:165d832aac3edac47af5451df1676e53",
-        "GUID:0d73284b61b0c97449887b82db5ead2b"
+        "GUID:0d73284b61b0c97449887b82db5ead2b",
+        "AVProVideo.Runtime",
+        "com.vrchat.core.vpm-resolver.Editor",
+        "UdonSharp.Editor",
+        "UdonSharp.Lib",
+        "UdonSharp.Runtime",
+        "UniTask",
+        "VRC.SDK3",
+        "VRC.SDK3.Editor",
+        "VRC.SDKBase",
+        "VRC.SDKBase.Editor",
+        "VRC.SDKBase.Editor.BuildPipeline",
+        "VRC.Udon",
+        "VRC.Udon.Editor",
+        "VRC.Udon.Serialization.OdinSerializer",
+        "Yamadev.YamaStream.Runtime"
     ],
     "includePlatforms": [
         "Editor"

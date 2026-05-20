@@ -36,7 +36,7 @@ namespace Yamadev.YamaStream.UI
     [SerializeField] private Text _shuffleLabel2;
     [SerializeField] private Text _reloadLabel; // 現在使用してない
     [SerializeField] private Text _settingsLabel;
-    [SerializeField] private Text _versionLabel;
+    [SerializeField] private Text _animeLabel;
     [SerializeField] private Text _lockUiLabel;
 
     [Header("Localization - Right Side Labels")]
@@ -49,6 +49,7 @@ namespace Yamadev.YamaStream.UI
     [SerializeField] private Text _tabPlaybackLabel;
     [SerializeField] private Text _tabVideoAndAudioLabel;
     [SerializeField] private Text _tabUiLabel;
+    [SerializeField] private Text _tabInfoLabel;
 
     [Header("Localization - Playback Settings")]
     [SerializeField] private Text _videoPlayerTitleLabel;
@@ -269,6 +270,7 @@ namespace Yamadev.YamaStream.UI
       if (Utilities.IsValid(_tabPlaybackLabel)) _tabPlaybackLabel.text = GetTranslation("tab.playback");
       if (Utilities.IsValid(_tabVideoAndAudioLabel)) _tabVideoAndAudioLabel.text = GetTranslation("tab.videoAndAudio");
       if (Utilities.IsValid(_tabUiLabel)) _tabUiLabel.text = GetTranslation("tab.other");
+      if (Utilities.IsValid(_tabInfoLabel)) _tabInfoLabel.text = GetTranslation("tab.info");
 
       if (Utilities.IsValid(_inputUrlLabel)) _inputUrlLabel.text = GetTranslation("label.inputUrl");
       if (Utilities.IsValid(_loopLabel)) _loopLabel.text = GetTranslation("label.loop");
@@ -276,7 +278,7 @@ namespace Yamadev.YamaStream.UI
       if (Utilities.IsValid(_shuffleLabel)) _shuffleLabel.text = GetTranslation("label.shuffle");
       if (Utilities.IsValid(_shuffleLabel2)) _shuffleLabel2.text = GetTranslation("label.shuffle");
       if (Utilities.IsValid(_settingsLabel)) _settingsLabel.text = GetTranslation("menu.settings");
-      if (Utilities.IsValid(_versionLabel)) _versionLabel.text = GetTranslation("label.version");
+      if (Utilities.IsValid(_animeLabel)) _animeLabel.text = GetTranslation("label.anime");
       if (Utilities.IsValid(_lockUiLabel)) _lockUiLabel.text = GetTranslation("label.lockUi");
 
       if (Utilities.IsValid(_tabQueueLabel)) _tabQueueLabel.text = GetTranslation("label.playQueue");
