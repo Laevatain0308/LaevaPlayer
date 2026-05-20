@@ -124,7 +124,8 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       _activeDownloadCount = 0;
 
       Debug.Log("[AnimeOnDemand] Start, poolSize=" + poolSize);
-      FetchUpdateList();
+      if (Utilities.IsValid(_updateUrl) && _updateUrl.IsValidUrl())
+        FetchUpdateList();
     }
 
     // ═══════════════════════════════════════════════

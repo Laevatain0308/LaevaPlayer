@@ -99,7 +99,7 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (Utilities.IsValid(_searchInputField) && Utilities.IsValid(_animeOnDemand))
       {
         var baseUrl = _animeOnDemand.GetSearchBaseUrl();
-        if (baseUrl.IsValidUrl())
+        if (Utilities.IsValid(baseUrl) && baseUrl.IsValidUrl())
         {
           _searchInputField.SetUrl(baseUrl);
           _searchBaseUrl = baseUrl;
@@ -439,7 +439,7 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (Utilities.IsValid(_searchInputField))
       {
         var baseUrl = _animeOnDemand.GetSearchBaseUrl();
-        if (baseUrl.IsValidUrl())
+        if (Utilities.IsValid(baseUrl) && baseUrl.IsValidUrl())
           _searchInputField.SetUrl(baseUrl);
       }
       SendCustomEventDelayedFrames(nameof(ClearSearchSuppressFlag), 0);
