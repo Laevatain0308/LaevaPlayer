@@ -696,7 +696,7 @@ MonoBehaviour:
   m_StartCorner: 0
   m_StartAxis: 0
   m_CellSize: {x: 172.8, y: 240.3}
-  m_Spacing: {x: 22, y: 22}
+  m_Spacing: {x: 22, y: 48}
   m_Constraint: 1
   m_ConstraintCount: 5
 --- !u!1 &1734810090219185342
@@ -2127,7 +2127,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 66.6, y: -16.799988}
+  m_AnchoredPosition: {x: 66.6, y: -37}
   m_SizeDelta: {x: 1110, y: 540}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8745195175224377595
@@ -2941,8 +2941,6 @@ MonoBehaviour:
   _animeOnDemand: {fileID: 0}
   _animeListView: {fileID: 5344651349738326282}
   _detailView: {fileID: 5468254776859154656}
-  _statusOverlay: {fileID: 5212527983827690922}
-  _statusText: {fileID: 365644349239697443}
   _searchInputField: {fileID: 4956441842313683647}
   _listTitleText: {fileID: 903726699004610630}
   _coverGrid: {fileID: 1557725019879757677}
@@ -2953,14 +2951,13 @@ MonoBehaviour:
   _detailDescText: {fileID: 2148922193586523025}
   _episodeList: {fileID: 2799513344047414169}
   _episodeButtonTemplate: {fileID: 8953153750930761326}
+  _channelToggleGroup: {fileID: 3706896023393440073}
   _channel1Toggle: {fileID: 780939757227364957}
   _channel2Toggle: {fileID: 4973116379125527662}
   _channel3Toggle: {fileID: 8293586830967143019}
-  _channelToggleGroup: {fileID: 3706896023393440073}
   _refreshButton: {fileID: 6995787933722076742}
   _clearSearchButton: {fileID: 1372986713515809057}
   _backButton: {fileID: 2407977894398931262}
-  _retryButton: {fileID: 7734306733517810942}
 --- !u!114 &7954199097450771020
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3694,7 +3691,7 @@ PrefabInstance:
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
@@ -3704,17 +3701,17 @@ PrefabInstance:
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: 172.8
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 240.3
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
@@ -3754,12 +3751,12 @@ PrefabInstance:
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 96.4
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -140.15
       objectReference: {fileID: 0}
     - target: {fileID: 5429565038998478730, guid: 309e1b587bd734429864b3e309fa488e,
         type: 3}
@@ -3786,6 +3783,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: CoverItemComplate
+      objectReference: {fileID: 0}
+    - target: {fileID: 7484167385361463921, guid: 309e1b587bd734429864b3e309fa488e,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

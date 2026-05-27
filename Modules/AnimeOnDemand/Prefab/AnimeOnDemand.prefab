@@ -95,10 +95,11 @@ MonoBehaviour:
     url: 
   _searchBaseUrlField:
     url: 
-  _coverDownloaderCount: 8
+  _coverDownloaderCount: 12
   _coverClickIndex: 0
   _episodeChannelIndex: 0
   _episodeClickIndex: 0
+  _searchQueryFromUI: 
 --- !u!114 &3759295818424719832
 MonoBehaviour:
   m_ObjectHideFlags: 0

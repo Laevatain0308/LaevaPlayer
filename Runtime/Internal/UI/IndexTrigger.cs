@@ -12,16 +12,20 @@ namespace Yamadev.YamaStream.UI
     [SerializeField] private object _variableObject;
     [SerializeField] private string _eventName;
 
+    [HideInInspector] public bool _useIntValue;
+    [HideInInspector] public int _intValue;
+
     public void OnButtonClick()
     {
-      if (!string.IsNullOrEmpty(_variableValue))
-      {
+      Debug.Log("[IndexTrigger] OnButtonClick — _udon=" + (_udon != null ? _udon.name : "NULL")
+        + " name=" + _variableName + " intValue=" + _intValue + " evt=" + _eventName);
+
+      if (_useIntValue)
+        _udon.SetProgramVariable(_variableName, _intValue);
+      else if (!string.IsNullOrEmpty(_variableValue))
         _udon.SetProgramVariable(_variableName, _variableValue);
-      }
       else
-      {
         _udon.SetProgramVariable(_variableName, _variableObject);
-      }
 
       _udon.SendCustomEvent(_eventName);
     }

@@ -27,15 +27,15 @@ RectTransform:
   m_GameObject: {fileID: 5423690902567880226}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
+  m_LocalScale: {x: 0.12, y: 0.12, z: 0.12}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 976683277258650733}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 33, y: 0}
-  m_SizeDelta: {x: 1101.4801, y: 232}
+  m_AnchoredPosition: {x: 19, y: -0.0000052452}
+  m_SizeDelta: {x: 1282.1188, y: 435.2189}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!222 &271543142393817910
 CanvasRenderer:
@@ -201,7 +201,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 7900767299416404812}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: -3505611556431452533}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: SendCustomEvent
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: OnButtonClick
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &-248622373729833128
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -231,6 +243,8 @@ MonoBehaviour:
   _variableName: _episodeClickIndex
   _variableValue: 
   _eventName: OnEpisodeClick
+  _useIntValue: 0
+  _intValue: 0
 --- !u!114 &-3505611556431452533
 MonoBehaviour:
   m_ObjectHideFlags: 0

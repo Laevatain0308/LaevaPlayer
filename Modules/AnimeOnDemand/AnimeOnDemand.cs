@@ -37,7 +37,7 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     [SerializeField] private VRCUrl _searchBaseUrlField;
 
     [Header("封面下载器池数量")]
-    [SerializeField] [Range(1, 12)] private int _coverDownloaderCount = 8;
+    [SerializeField] [Range(1, 12)] private int _coverDownloaderCount = 12;
     private VRCImageDownloader[] _coverDownloaders;
 
     // ── Runtime state ──
@@ -50,16 +50,33 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
 
     // ── Cover download scheduling ──
     private int[] _slotToListIndex;
+    private int[] _slotAid;
+    private bool[] _downloaderBusy;
     private int[] _pendingDownloadQueue;
     private int _pendingDownloadHead;
     private int _pendingDownloadTail;
     private int _activeDownloadCount;
+
+    // ── Texture cache (keyed by aid) ──
+    private const int MAX_CACHED_TEXTURES = 100;
+    private Texture[] _cachedTextures;
+    private int[] _cachedAids;
+    private int _cachedTextureCount;
+
+    // ── Search state ──
+    private string _currentSearchQuery = string.Empty;
+    private DataList _cachedSearchList;
+    private string _cachedSearchQuery = string.Empty;
+
+    // ── Retry state ──
+    private int _retryListIndex = -1;
 
     private YamaPlayerListener[] _listeners = new YamaPlayerListener[0];
 
     [HideInInspector] public int _coverClickIndex;
     [HideInInspector] public int _episodeChannelIndex;
     [HideInInspector] public int _episodeClickIndex;
+    [HideInInspector] public string _searchQueryFromUI;
 
     // ═══════════════════════════════════════════════
     //  Public access
@@ -77,6 +94,71 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (!Utilities.IsValid(_coverTextures)) return null;
       if (index < 0 || index >= _coverTextures.Length) return null;
       return _coverTextures[index];
+    }
+
+    public string GetCurrentSearchQuery() { return _currentSearchQuery; }
+
+    // ── Texture cache helpers ──
+
+    private int TryGetAid(DataToken item)
+    {
+      if (item.TokenType != TokenType.DataDictionary) return -1;
+      var dict = item.DataDictionary;
+      if (!dict.TryGetValue("aid", out DataToken aidToken)) return -1;
+      if (aidToken.TokenType == TokenType.Double)
+        return (int)aidToken.Double;
+      if (aidToken.TokenType == TokenType.String)
+      {
+        string s = aidToken.String;
+        if (string.IsNullOrEmpty(s)) return -1;
+        int result = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+          char c = s[i];
+          if (c < '0' || c > '9') return -1;
+          result = result * 10 + (c - '0');
+        }
+        return result;
+      }
+      return -1;
+    }
+
+    private Texture FindCachedTexture(int aid)
+    {
+      if (aid <= 0 || !Utilities.IsValid(_cachedTextures)) return null;
+      for (int i = 0; i < _cachedTextureCount; i++)
+      {
+        if (_cachedAids[i] == aid && Utilities.IsValid(_cachedTextures[i]))
+          return _cachedTextures[i];
+      }
+      return null;
+    }
+
+    private void AddToCache(int aid, Texture tex)
+    {
+      if (aid <= 0 || !Utilities.IsValid(tex)) return;
+      // Check for existing entry
+      for (int i = 0; i < _cachedTextureCount; i++)
+      {
+        if (_cachedAids[i] == aid)
+        {
+          _cachedTextures[i] = tex;
+          return;
+        }
+      }
+      // Evict oldest if full (FIFO)
+      if (_cachedTextureCount >= MAX_CACHED_TEXTURES)
+      {
+        for (int i = 0; i < _cachedTextureCount - 1; i++)
+        {
+          _cachedTextures[i] = _cachedTextures[i + 1];
+          _cachedAids[i] = _cachedAids[i + 1];
+        }
+        _cachedTextureCount--;
+      }
+      _cachedTextures[_cachedTextureCount] = tex;
+      _cachedAids[_cachedTextureCount] = aid;
+      _cachedTextureCount++;
     }
 
     // ═══════════════════════════════════════════════
@@ -117,11 +199,17 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       for (int i = 0; i < poolSize; i++)
         _coverDownloaders[i] = new VRCImageDownloader();
       _slotToListIndex = new int[poolSize];
-      for (int i = 0; i < poolSize; i++) _slotToListIndex[i] = -1;
+      _slotAid = new int[poolSize];
+      _downloaderBusy = new bool[poolSize];
+      for (int i = 0; i < poolSize; i++) { _slotToListIndex[i] = -1; _slotAid[i] = -1; }
       _pendingDownloadQueue = new int[MAX_ITEMS];
       _pendingDownloadHead = 0;
       _pendingDownloadTail = 0;
       _activeDownloadCount = 0;
+
+      _cachedTextures = new Texture[MAX_CACHED_TEXTURES];
+      _cachedAids = new int[MAX_CACHED_TEXTURES];
+      _cachedTextureCount = 0;
 
       Debug.Log("[AnimeOnDemand] Start, poolSize=" + poolSize);
       if (Utilities.IsValid(_updateUrl) && _updateUrl.IsValidUrl())
@@ -173,7 +261,23 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     {
       if (!url.IsValidUrl()) return;
       _context = CONTEXT_SEARCH;
-      Debug.Log("[AnimeOnDemand] OnSearchSubmit url=" + url);
+      _currentSearchQuery = _searchQueryFromUI;
+      Debug.Log("[AnimeOnDemand] OnSearchSubmit url=" + url + " query=" + _currentSearchQuery);
+
+      // Check search cache
+      if (!string.IsNullOrEmpty(_currentSearchQuery)
+          && _currentSearchQuery == _cachedSearchQuery
+          && Utilities.IsValid(_cachedSearchList))
+      {
+        Debug.Log("[AnimeOnDemand] Search cache hit: " + _currentSearchQuery);
+        _currentList = _cachedSearchList;
+        _state = STATE_SEARCH_RESULTS;
+        int count = _currentList.Count;
+        if (count > 0) StartCoverDownloads(count);
+        BroadcastEvent("AfterAnimeStateChanged");
+        return;
+      }
+
       BeginRequest(STATE_LOADING_SEARCH, url);
     }
 
@@ -200,7 +304,13 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     {
       int prevState = _state;
       if (prevState == STATE_SEARCH_RESULTS)
-        BackToUpdate();
+      {
+        _currentList = new DataList();
+        _coverTextures = new Texture[0];
+        _currentSearchQuery = string.Empty;
+        BroadcastEvent("AfterAnimeStateChanged");
+        FetchUpdateList();
+      }
       else if (prevState == STATE_DETAIL)
         _context = CONTEXT_UPDATE;
     }
@@ -211,11 +321,13 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
 
     public void OnCoverClick()
     {
+      Debug.Log("[AnimeOnDemand] OnCoverClick _coverClickIndex=" + _coverClickIndex);
       FetchDetail(_coverClickIndex);
     }
 
     public void OnEpisodeClick()
     {
+      Debug.Log("[AnimeOnDemand] OnEpisodeClick ch=" + _episodeChannelIndex + " ep=" + _episodeClickIndex);
       Play(_episodeChannelIndex, _episodeClickIndex);
     }
 
@@ -263,35 +375,59 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     {
       string resultUrl = result.Url.Get();
 
-      if (!Utilities.IsValid(_coverUrls)) return;
-      int coverUrlLen = _coverUrls.Length;
-      for (int i = 0; i < coverUrlLen && i < _coverTextures.Length; i++)
+      // Step 1: Find the aid recorded at dispatch time (not current _currentList[idx])
+      int downloadedAid = -1;
+      int poolSize = _slotToListIndex.Length;
+      for (int s = 0; s < poolSize; s++)
       {
-        if (_coverUrls[i] != null && _coverUrls[i].Get() == resultUrl)
+        int idx = _slotToListIndex[s];
+        if (idx >= 0 && idx < _coverUrls.Length && _coverUrls[idx] != null && _coverUrls[idx].Get() == resultUrl)
         {
-          _coverTextures[i] = result.Result;
-
-          int poolSize = _slotToListIndex.Length;
-          for (int s = 0; s < poolSize; s++)
-          {
-            if (_slotToListIndex[s] == i)
-            {
-              _slotToListIndex[s] = -1;
-              _activeDownloadCount--;
-              break;
-            }
-          }
-
-          DispatchNextPending();
-          BroadcastEvent("AfterCoverLoaded");
+          downloadedAid = _slotAid[s];
           break;
         }
+      }
+      AddToCache(downloadedAid, result.Result);
+
+      // Step 2: Free the matching downloader slot
+      for (int s = 0; s < poolSize; s++)
+      {
+        int idx = _slotToListIndex[s];
+        if (idx >= 0 && idx < _coverUrls.Length && _coverUrls[idx] != null && _coverUrls[idx].Get() == resultUrl)
+        {
+          _slotToListIndex[s] = -1;
+          _slotAid[s] = -1;
+          _downloaderBusy[s] = false;
+          _activeDownloadCount--;
+          break;
+        }
+      }
+
+      // Step 3: Apply cached texture to all matching items in CURRENT view
+      ApplyCacheToCurrentView(downloadedAid, result.Result);
+
+      DispatchNextPending();
+      BroadcastEvent("AfterCoverLoaded");
+    }
+
+    // Pull cached texture into current view for all items matching the given aid
+    private void ApplyCacheToCurrentView(int aid, Texture tex)
+    {
+      if (aid <= 0 || !Utilities.IsValid(tex)) return;
+      if (!Utilities.IsValid(_currentList) || !Utilities.IsValid(_coverTextures)) return;
+      int count = _currentList.Count;
+      for (int i = 0; i < count && i < _coverTextures.Length; i++)
+      {
+        if (_coverTextures[i] != null) continue; // already filled
+        if (TryGetAid(_currentList[i]) == aid)
+          _coverTextures[i] = tex;
       }
     }
 
     public override void OnImageLoadError(IVRCImageDownload result)
     {
       string resultUrl = result.Url.Get();
+      int failedListIndex = -1;
 
       if (Utilities.IsValid(_coverUrls))
       {
@@ -301,15 +437,34 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
           int idx = _slotToListIndex[s];
           if (idx >= 0 && idx < _coverUrls.Length && _coverUrls[idx] != null && _coverUrls[idx].Get() == resultUrl)
           {
+            failedListIndex = idx;
             _slotToListIndex[s] = -1;
+            _slotAid[s] = -1;
+            _downloaderBusy[s] = false;
             _activeDownloadCount--;
             break;
           }
         }
       }
 
+      if (result.Error == VRCImageDownloadError.TooManyRequests && failedListIndex >= 0)
+      {
+        _retryListIndex = failedListIndex;
+        SendCustomEventDelayedSeconds(nameof(_RetryDispatch), 2f);
+        return;
+      }
+
       DispatchNextPending();
       PrintError($"Image load error: {result.Error} url={result.Url}");
+    }
+
+    public void _RetryDispatch()
+    {
+      if (_retryListIndex < 0) return;
+      int idx = _retryListIndex;
+      _retryListIndex = -1;
+      EnqueuePending(idx);
+      DispatchNextPending();
     }
 
     // ═══════════════════════════════════════════════
@@ -341,8 +496,20 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       _state = STATE_SEARCH_RESULTS;
       _context = CONTEXT_SEARCH;
 
+      // Extract search query from meta
+      if (dict.TryGetValue("meta", out DataToken metaToken) && metaToken.TokenType == TokenType.DataDictionary)
+      {
+        var meta = metaToken.DataDictionary;
+        if (meta.TryGetValue("query", out DataToken queryToken) && queryToken.TokenType == TokenType.String)
+          _currentSearchQuery = queryToken.String;
+      }
+
+      // Cache search results
+      _cachedSearchList = _currentList;
+      _cachedSearchQuery = _currentSearchQuery;
+
       int count = _currentList.Count;
-      Debug.Log("[AnimeOnDemand] HandleSearchResponse count=" + count);
+      Debug.Log("[AnimeOnDemand] HandleSearchResponse count=" + count + " query=" + _currentSearchQuery);
       if (count > 0) StartCoverDownloads(count);
 
       BroadcastEvent("AfterAnimeStateChanged");
@@ -367,28 +534,100 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     private void StartCoverDownloads(int count)
     {
       _coverTextures = new Texture[count];
-      _activeDownloadCount = 0;
+
+      int poolSize = _slotToListIndex.Length;
+
+      // Free non-busy slots only — keep orphaned downloads running
+      for (int i = 0; i < poolSize; i++)
+      {
+        if (!_downloaderBusy[i])
+        {
+          _slotToListIndex[i] = -1;
+          _slotAid[i] = -1;
+        }
+      }
+
+      // Clear pending queue (old items irrelevant for new view)
       _pendingDownloadHead = 0;
       _pendingDownloadTail = 0;
 
-      int poolSize = _slotToListIndex.Length;
-      for (int i = 0; i < poolSize; i++) _slotToListIndex[i] = -1;
-
-      int initial = count < poolSize ? count : poolSize;
-      for (int i = 0; i < initial; i++)
-        DispatchCoverDownload(i);
-      for (int i = initial; i < count; i++)
+      // Try cache hits; queue misses
+      int pendingStart = 0;
+      for (int i = 0; i < count; i++)
+      {
+        if (Utilities.IsValid(_currentList) && i < _currentList.Count)
+        {
+          int aid = TryGetAid(_currentList[i]);
+          Texture cached = FindCachedTexture(aid);
+          if (cached != null)
+          {
+            _coverTextures[i] = cached;
+            continue;
+          }
+          // Check if this aid is already being downloaded by an active slot
+          bool alreadyDownloading = false;
+          for (int s = 0; s < poolSize; s++)
+          {
+            if (_downloaderBusy[s] && _slotAid[s] == aid)
+            {
+              alreadyDownloading = true;
+              break;
+            }
+          }
+          if (alreadyDownloading) continue; // skip — download in progress
+        }
+        // Queue for download
         EnqueuePending(i);
+        if (pendingStart < poolSize) pendingStart++;
+      }
+
+      // Dispatch initial batch to free downloaders (skip busy ones)
+      int dispatched = 0;
+      while (dispatched < pendingStart && _pendingDownloadHead != _pendingDownloadTail)
+      {
+        float delay = dispatched * 0.08f;
+        if (delay > 0f)
+          SendCustomEventDelayedSeconds(nameof(_DispatchNextFromQueue), delay);
+        else
+        {
+          int index = _pendingDownloadQueue[_pendingDownloadHead];
+          _pendingDownloadHead = (_pendingDownloadHead + 1) % MAX_ITEMS;
+          DispatchCoverDownload(index);
+        }
+        dispatched++;
+      }
+
+      // All covers from cache — notify UI immediately
+      if (dispatched == 0 && _pendingDownloadHead == _pendingDownloadTail)
+        BroadcastEvent("AfterCoverLoaded");
+    }
+
+    public void _DispatchNextFromQueue()
+    {
+      if (_pendingDownloadHead == _pendingDownloadTail) return;
+      int index = _pendingDownloadQueue[_pendingDownloadHead];
+      _pendingDownloadHead = (_pendingDownloadHead + 1) % MAX_ITEMS;
+      DispatchCoverDownload(index);
+    }
+
+    private int _dispatchIndex;
+
+    public void _DispatchCoverAtIndex()
+    {
+      DispatchCoverDownload(_dispatchIndex);
     }
 
     private void DispatchCoverDownload(int listIndex)
     {
+      _dispatchIndex = listIndex;
       int poolSize = _slotToListIndex.Length;
       for (int s = 0; s < poolSize; s++)
       {
-        if (_slotToListIndex[s] < 0)
+        if (!_downloaderBusy[s])
         {
+          _downloaderBusy[s] = true;
           _slotToListIndex[s] = listIndex;
+          _slotAid[s] = TryGetAid(_currentList[listIndex]);
           if (Utilities.IsValid(_coverDownloaders[s]) && Utilities.IsValid(_coverUrls) && listIndex < _coverUrls.Length)
           {
             _coverDownloaders[s].DownloadImage(_coverUrls[listIndex], null, (IUdonEventReceiver)this);
@@ -407,15 +646,32 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
 
     private void DispatchNextPending()
     {
-      if (_pendingDownloadHead == _pendingDownloadTail) return;
-
       int poolSize = _slotToListIndex.Length;
       int freeSlots = poolSize - _activeDownloadCount;
       if (freeSlots <= 0) return;
 
-      int index = _pendingDownloadQueue[_pendingDownloadHead];
-      _pendingDownloadHead = (_pendingDownloadHead + 1) % MAX_ITEMS;
-      DispatchCoverDownload(index);
+      // Scan queue for next item that isn't already cached or downloading
+      while (_pendingDownloadHead != _pendingDownloadTail)
+      {
+        int index = _pendingDownloadQueue[_pendingDownloadHead];
+        _pendingDownloadHead = (_pendingDownloadHead + 1) % MAX_ITEMS;
+
+        // Re-check cache (may have been filled by an orphaned download)
+        if (Utilities.IsValid(_currentList) && index < _currentList.Count)
+        {
+          int aid = TryGetAid(_currentList[index]);
+          Texture cached = FindCachedTexture(aid);
+          if (cached != null)
+          {
+            if (index < _coverTextures.Length)
+              _coverTextures[index] = cached;
+            continue;
+          }
+        }
+
+        DispatchCoverDownload(index);
+        return;
+      }
     }
   }
 }

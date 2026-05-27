@@ -29,7 +29,7 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand.Editor
       var controller = module.GetComponentInParent<Controller>();
       var playerId = (int)controller.GetProgramVariable("_playerId");
 
-      var baseUrl = $"https://{HOST}/anim/vrc";
+      var baseUrl = $"https://{HOST}/anime/vrc";
 
       // 1. 更新 URL（1 个）
       var updateUrl = new VRCUrl($"{baseUrl}/update?pid={playerId}");

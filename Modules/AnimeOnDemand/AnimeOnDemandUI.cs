@@ -121,6 +121,9 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     public void AfterAnimeStateChanged()
     {
       Debug.Log("[AnimeOnDemandUI] AfterAnimeStateChanged");
+      int state = _animeOnDemand.GetState();
+      if (state == 1 || state == 2 || state == 3) // LOADING states
+        ResetCoverGridToPlaceholder();
       SendCustomEventDelayedFrames(nameof(UpdateUI), 0, EventTiming.LateUpdate);
     }
 
@@ -133,6 +136,19 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
     public void AfterLanguageChanged()
     {
       UpdateTranslation();
+    }
+
+    // ── Texture reset helper ──
+
+    private void ResetCoverGridToPlaceholder()
+    {
+      for (int i = 0; i < _coverPoolSize; i++)
+      {
+        if (!Utilities.IsValid(_coverItemPool[i])) continue;
+        var rawImage = _coverItemPool[i].GetComponentInChildren<RawImage>();
+        if (Utilities.IsValid(rawImage))
+          rawImage.texture = _placeholderTexture;
+      }
     }
 
     // ═══════════════════════════════════════════════
@@ -181,10 +197,20 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
         }
         else if (count > 0)
         {
-          string prefix = (context == 0)
-            ? GetLocalized("module.animeOnDemand.recentUpdate")
-            : GetLocalized("module.animeOnDemand.searchResults");
-          _listTitleText.text = $"{prefix} ({count})";
+          if (context == 1) // CONTEXT_SEARCH
+          {
+            string query = _animeOnDemand.GetCurrentSearchQuery();
+            string prefix = GetLocalized("module.animeOnDemand.searchResults");
+            if (!string.IsNullOrEmpty(query))
+              _listTitleText.text = $"{prefix}: \"{query}\" ({count})";
+            else
+              _listTitleText.text = $"{prefix} ({count})";
+          }
+          else
+          {
+            string prefix = GetLocalized("module.animeOnDemand.recentUpdate");
+            _listTitleText.text = $"{prefix} ({count})";
+          }
         }
         else
         {
@@ -194,33 +220,84 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
 
       if (Utilities.IsValid(_coverItemTemplate) && Utilities.IsValid(_coverGrid))
       {
-        for (int i = count; i < _coverPoolSize; i++)
+        // Keep template out of GridLayoutGroup
+        if (_coverItemTemplate.transform.parent == _coverGrid)
+          _coverItemTemplate.transform.SetParent(_coverGrid.parent, false);
+        _coverItemTemplate.SetActive(false);
+
+        // Step 1: Deactivate ALL children (handles orphans at any position)
+        int childCount = _coverGrid.childCount;
+        for (int c = childCount - 1; c >= 0; c--)
         {
-          if (Utilities.IsValid(_coverItemPool[i]))
-            _coverItemPool[i].SetActive(false);
+          var child = _coverGrid.GetChild(c).gameObject;
+          if (Utilities.IsValid(child))
+            child.SetActive(false);
         }
 
+        // Step 2: Activate reused or create new items — append to end, no SetSiblingIndex
+        int createdCount = 0;
         for (int i = 0; i < count && i < MAX_ITEMS; i++)
         {
+          GameObject item;
           if (i < _coverPoolSize && Utilities.IsValid(_coverItemPool[i]))
           {
-            _coverItemPool[i].SetActive(true);
+            item = _coverItemPool[i];
           }
           else
           {
-            GameObject item = Instantiate(_coverItemTemplate);
+            item = Instantiate(_coverItemTemplate);
             item.transform.SetParent(_coverGrid, false);
-            item.SetActive(true);
             _coverItemPool[i] = item;
-            if (i >= _coverPoolSize) _coverPoolSize = i + 1;
+            createdCount++;
 
             var indexTrigger = item.GetComponent<IndexTrigger>();
             if (Utilities.IsValid(indexTrigger))
-              indexTrigger.SetProgramVariable("_variableObject", i);
+            {
+              indexTrigger.SetProgramVariable("_udon", (UdonSharpBehaviour)_animeOnDemand);
+              indexTrigger.SetProgramVariable("_variableName", "_coverClickIndex");
+              indexTrigger.SetProgramVariable("_eventName", "OnCoverClick");
+              indexTrigger.SetProgramVariable("_useIntValue", true);
+            }
           }
+          item.SetActive(true);
+
+          var it = item.GetComponent<IndexTrigger>();
+          if (Utilities.IsValid(it))
+            it.SetProgramVariable("_intValue", i);
         }
+        if (createdCount > 0)
+          _coverPoolSize = count;
 
         UpdateCoverGridTextures();
+        UpdateScrollContentHeight(count);
+      }
+    }
+
+    private void UpdateScrollContentHeight(int itemCount)
+    {
+      if (itemCount <= 0 || !Utilities.IsValid(_coverGrid)) return;
+      var layout = _coverGrid.GetComponent<GridLayoutGroup>();
+      if (!Utilities.IsValid(layout)) return;
+
+      int columns = layout.constraintCount;
+      if (columns <= 0) columns = 5;
+      int rows = (itemCount + columns - 1) / columns;
+
+      float cellHeight = layout.cellSize.y;
+      float spacingY = layout.spacing.y;
+
+      // Can't read RectOffset properties in Udon — values match Prefab defaults
+      float padTop = 20f;
+      float padBottom = 20f;
+
+      float totalHeight = padTop + rows * cellHeight + (rows - 1) * spacingY + padBottom;
+
+      var rt = _coverGrid.GetComponent<RectTransform>();
+      if (Utilities.IsValid(rt))
+      {
+        Vector2 sd = rt.sizeDelta;
+        sd.y = totalHeight;
+        rt.sizeDelta = sd;
       }
     }
 
@@ -236,10 +313,22 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
         if (!Utilities.IsValid(_coverItemPool[i])) continue;
 
         var rawImage = _coverItemPool[i].GetComponentInChildren<RawImage>();
-        if (!Utilities.IsValid(rawImage)) continue;
+        if (Utilities.IsValid(rawImage))
+        {
+          Texture tex = _animeOnDemand.GetCoverTexture(i);
+          rawImage.texture = (tex != null) ? tex : _placeholderTexture;
+        }
 
-        Texture tex = _animeOnDemand.GetCoverTexture(i);
-        rawImage.texture = (tex != null) ? tex : _placeholderTexture;
+        // Update title text if present
+        var titleText = _coverItemPool[i].GetComponentInChildren<Text>();
+        if (Utilities.IsValid(titleText))
+        {
+          DataToken item = list[i];
+          if (item.TokenType == TokenType.DataDictionary
+              && item.DataDictionary.TryGetValue("title", out DataToken t)
+              && t.TokenType == TokenType.String)
+            titleText.text = t.String;
+        }
       }
 
       int detailIdx = _animeOnDemand.GetCurrentDetailIndex();
@@ -309,12 +398,28 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
         int channelCount = channels.Count;
         if (channelCount > MAX_CHANNELS) channelCount = MAX_CHANNELS;
 
-        if (Utilities.IsValid(_channel1Toggle))
-          _channel1Toggle.gameObject.SetActive(channelCount >= 1);
-        if (Utilities.IsValid(_channel2Toggle))
-          _channel2Toggle.gameObject.SetActive(channelCount >= 2);
-        if (Utilities.IsValid(_channel3Toggle))
-          _channel3Toggle.gameObject.SetActive(channelCount >= 3);
+        Toggle[] chToggles = { _channel1Toggle, _channel2Toggle, _channel3Toggle };
+        for (int ch = 0; ch < channelCount; ch++)
+        {
+          if (Utilities.IsValid(chToggles[ch]))
+          {
+            chToggles[ch].gameObject.SetActive(true);
+            DataToken chToken = channels[ch];
+            if (chToken.TokenType == TokenType.DataDictionary
+                && chToken.DataDictionary.TryGetValue("name", out DataToken nameToken)
+                && nameToken.TokenType == TokenType.String)
+            {
+              var label = chToggles[ch].GetComponentInChildren<Text>();
+              if (Utilities.IsValid(label))
+                label.text = nameToken.String;
+            }
+          }
+        }
+        for (int ch = channelCount; ch < MAX_CHANNELS; ch++)
+        {
+          if (Utilities.IsValid(chToggles[ch]))
+            chToggles[ch].gameObject.SetActive(false);
+        }
 
         for (int ch = 0; ch < MAX_CHANNELS; ch++)
           _channelLoaded[ch] = false;
@@ -363,19 +468,37 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       int baseIdx = chIndex * MAX_EPISODES;
       for (int ep = 0; ep < epCount; ep++)
       {
+        // Pool cap for episode buttons
+        int poolIdx = baseIdx + ep;
+        if (poolIdx >= _episodePool.Length) break;
+
         GameObject btn = Instantiate(_episodeButtonTemplate);
         btn.transform.SetParent(_episodeList, false);
         btn.SetActive(true);
-        _episodePool[baseIdx + ep] = btn;
+        _episodePool[poolIdx] = btn;
 
         DataToken epToken = episodes[ep];
-        string label = epToken.TokenType == TokenType.String ? epToken.String : $"第{ep + 1}集";
+        string label;
+        if (epToken.TokenType == TokenType.DataDictionary
+            && epToken.DataDictionary.TryGetValue("name", out DataToken nameToken)
+            && nameToken.TokenType == TokenType.String)
+          label = nameToken.String;
+        else if (epToken.TokenType == TokenType.String)
+          label = epToken.String;
+        else
+          label = $"第{ep + 1}集";
         var btnText = btn.GetComponentInChildren<Text>();
         if (Utilities.IsValid(btnText)) btnText.text = label;
 
         var indexTrigger = btn.GetComponent<IndexTrigger>();
         if (Utilities.IsValid(indexTrigger))
-          indexTrigger.SetProgramVariable("_variableObject", ep);
+        {
+          indexTrigger.SetProgramVariable("_udon", (UdonSharpBehaviour)_animeOnDemand);
+          indexTrigger.SetProgramVariable("_variableName", "_episodeClickIndex");
+          indexTrigger.SetProgramVariable("_eventName", "OnEpisodeClick");
+          indexTrigger.SetProgramVariable("_useIntValue", true);
+          indexTrigger.SetProgramVariable("_intValue", ep);
+        }
       }
 
       _channelLoaded[chIndex] = true;
@@ -443,6 +566,7 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
           _searchInputField.SetUrl(baseUrl);
       }
       SendCustomEventDelayedFrames(nameof(ClearSearchSuppressFlag), 0);
+      ResetCoverGridToPlaceholder();
       _animeOnDemand.ClearSearch();
     }
 
@@ -494,6 +618,16 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand
       if (!Utilities.IsValid(_animeOnDemand) || !Utilities.IsValid(_searchInputField)) return;
       var url = _searchInputField.GetUrl();
       if (!url.IsValidUrl()) return;
+
+      // Extract search keyword from URL
+      string fullUrl = url.Get();
+      if (Utilities.IsValid(_searchBaseUrl))
+      {
+        string baseUrl = _searchBaseUrl.Get();
+        if (!string.IsNullOrEmpty(baseUrl) && fullUrl.Length > baseUrl.Length)
+          _animeOnDemand.SetProgramVariable("_searchQueryFromUI", fullUrl.Substring(baseUrl.Length));
+      }
+
       _animeOnDemand.OnSearchSubmit(url);
     }
 
