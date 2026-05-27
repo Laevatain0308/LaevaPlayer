@@ -31,8 +31,13 @@ namespace Yamadev.YamaStream.Modules.VideoResolver.Editor
     {
       if (module == null) return;
 
-      // 从 Controller 读取 playerId
-      var controller = module.GetComponentInParent<Controller>();
+      // _controller 已由 YamaPlayerModuleBuildProcess (callbackOrder -3000) 设置
+      var controller = module.GetProgramVariable("_controller") as Controller;
+      if (controller == null)
+      {
+        Debug.LogWarning("[VideoResolver] Build process skipped: _controller not set");
+        return;
+      }
       var playerId = (int)controller.GetProgramVariable("_playerId");
 
       // 生成信号URL数组 (TERMINATOR_POS + 1) * 256 = 5120 个

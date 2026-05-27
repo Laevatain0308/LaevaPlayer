@@ -25,8 +25,9 @@ namespace Yamadev.YamaStream.Modules.AnimeOnDemand.Editor
     {
       if (module == null) return;
 
-      // 从 Controller 读取 playerId
-      var controller = module.GetComponentInParent<Controller>();
+      // _controller 已由 YamaPlayerModuleBuildProcess (callbackOrder -3000) 设置
+      var controller = module.GetProgramVariable("_controller") as Controller;
+      if (controller == null) return;
       var playerId = (int)controller.GetProgramVariable("_playerId");
 
       var baseUrl = $"https://{HOST}/anime/vrc";
